@@ -47,18 +47,19 @@ int main(){
 
 	//Taking inputs
 	fin >> n >> T >> Q >> D;
-	vector<vector<int>> cij(n, vector<int>(n, 0));
+	vector<vector<int>> cij(n+1, vector<int>(n+1, 0));
 	vector<int>q(n, 0);
 	vector<int> R(T, 0);
-	vector<vector<int>> dist(n, vector<int>(2, 0));
+	vector<vector<int>> dist(n+1, vector<int>(2, 0));
+	dist[0][0] = 0;dist[0][1]=0;
 	int a = 0, b = 0, c = 0, d = 0;
 	for (int i = 0; i < n; i++) {
 		fin >> a >> b >> c >> d;
-		dist[i][0] = b; dist[i][1] = c;
+		dist[i+1][0] = b; dist[i+1][1] = c;
 		q[i] = d;
 	}
-	for (int i = 0; i < n; i++) {
-		for (int j = 0; j < n; j++) {
+	for (int i = 0; i <= n; i++) {
+		for (int j = 0; j <= n; j++) {
 			cij[i][j] = sqrt(((dist[i][0] - dist[j][0]) * (dist[i][0] - dist[j][0])) + ((dist[i][1] - dist[j][1]) * (dist[i][1] - dist[j][1])));
 		}
 	}
@@ -155,7 +156,7 @@ int main(){
 			for (int k = 0; k < S[i].size(); k++) {
 				exp += (xik[i][k] * aikt[i][k][t]);
 			}
-			constraint.add(exp - vit[i][t] == 0);
+			//constraint.add(exp - vit[i][t] == 0);
 		}
 	}
 	
@@ -292,7 +293,7 @@ int main(){
 	mp.setOut(env.getNullStream());
 	
 	mp.solve();
-	cout << "Optimal value is ";
+	cout << "Optimal value is "<<mp.getObjValue();
 
 
 	return 0;
