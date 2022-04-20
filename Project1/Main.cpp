@@ -43,7 +43,6 @@ int main(){
 	
 	int Q = 0, D = 0;
 	vector<vector<vector<int>>>S;
-	//vector<set<int>>comb_k;
 
 	//Taking inputs
 	fin >> n >> T >> Q >> D;
@@ -60,7 +59,7 @@ int main(){
 	}
 	for (int i = 0; i <= n; i++) {
 		for (int j = 0; j <= n; j++) {
-			cij[i][j] = sqrt(((dist[i][0] - dist[j][0]) * (dist[i][0] - dist[j][0])) + ((dist[i][1] - dist[j][1]) * (dist[i][1] - dist[j][1])));
+			cij[i][j] = 1.3*sqrt(((dist[i][0] - dist[j][0]) * (dist[i][0] - dist[j][0])) + ((dist[i][1] - dist[j][1]) * (dist[i][1] - dist[j][1])));
 		}
 	}
 	/*for (int i = 0; i < n; i++) {
@@ -111,16 +110,15 @@ int main(){
 
 
 	IloEnv env;
+	IloRangeArray constraint1(env);
 	IloArray<IloNumVarArray> xik(env,n);
-	for(int i=0;i<n;i++)xik[i]= IloNumVarArray(env, S[i].size(), 0, 1, ILOINT);
+	for(int i=0;i<n;i++)xik[i]= IloNumVarArray(env, n, 0, 1, ILOINT);
 	IloArray<IloNumVarArray>vit(env, n);
 	for (int i = 0; i < n; i++)vit[i] = IloNumVarArray(env, T, 0, 1, ILOINT);
-	/*IloArray<IloNumVarArray> akt(env, comb_k.size());
-	for (int i = 0; i < comb_k.size(); i++)akt[i] = IloNumVarArray(env, T, 0, 1, ILOINT);*/
 	Array3D aikt(env, n);
 	for (int i = 0; i < n; i++) {
-		aikt[i] = Array2D(env, S[i].size());
-		for (int k = 0; k < S[i].size(); k++) {
+		aikt[i] = Array2D(env, n);
+		for (int k = 0; k < n; k++) {
 			aikt[i][k] = IloNumVarArray(env, T);
 			for (int t = 0; t < T; t++) {
 				aikt[i][k][t] = IloNumVar(env, 0, 1, ILOINT);
@@ -143,23 +141,34 @@ int main(){
 	}
 
 	IloRangeArray constraint(env);
+	IloExpr exp1(env);
+
+	//Constraint 6
 	for (int i = 1; i < n; i++) {
 		IloExpr exp(env);
 		for (int k = 0; k < S[i].size(); k++) {
-			exp += xik[i][k];
+			for (int p = 0; p < n; p++) {
+				if(S[i][k][p])exp += xik[i][p];
+			}
 		}
-		constraint.add(exp == 1);
+		constraint1.add(exp == 1);
 	}
+	
+
+	//Constraint7
 	for (int i = 1; i < n; i++) {
 		for (int t = 0; t < T; t++) {
 			IloExpr exp(env);
 			for (int k = 0; k < S[i].size(); k++) {
-				exp += (xik[i][k] * aikt[i][k][t]);
+				for (int p = 0; p < n; p++) {
+					if(S[i][k][p])exp += xik[i][p]*aikt[i][p][t];
+				}
 			}
-			//constraint.add(exp - vit[i][t] == 0);
+			constraint1.add(exp >= n);
 		}
 	}
 	
+	//Constraint8
 	for (int i = 0; i < n; i++) {
 		for (int j = 0; j < n; j++) {
 			if (i != j) {
@@ -176,6 +185,7 @@ int main(){
 		}
 	}
 
+	//Constraint9
 	for (int p = 0; p < n; p++) {
 		for (int t = 0; t < T; t++) {
 			for (int r = 0; r < R[t]; r++) {
@@ -186,12 +196,12 @@ int main(){
 				for (int j = 0; j < n; j++) {
 					exp -= uijtr[p][j][t][r];
 				}
-				constraint.add(exp == 0);
+				constraint1.add(exp == 0);
 			}
 		}
 	}
 	
-
+	//Constraint10
 	for (int j = 1; j < n; j++) {
 		for (int t = 0; t < T; t++) {
 			IloExpr exp(env);
@@ -200,9 +210,11 @@ int main(){
 					exp += uijtr[i][j][t][r];
 				}
 			}
-			constraint.add((exp - vit[j][t]) == 0);
+			constraint1.add((exp - vit[j][t]) == 0);
 		}
 	}
+
+	//Constraint10
 	for (int t = 0; t < T; t++) {
 		IloExpr exp(env);
 		for (int r = 0; r < R[t]; r++) {
@@ -212,7 +224,54 @@ int main(){
 		}
 		constraint.add((exp - vit[0][t]) == 0);
 	}
+	//Constraint 11
+	vector<int> series;
+	for (int i = 1; i <= n; i++)series.push_back(i);
+	vector<vector<int>> subset;
+	subset = getAllSubsets(series);
 
+	subset.erase(subset.begin());
+
+	for (int t = 0; t < T; t++) {
+		for (int r = 0; r < R[t]; r++) {
+			for (int p = 0; p < subset.size(); p++) {
+				IloExpr exp(env);
+				for (int i = 0; i < subset[p].size(); i++) {
+					for (int j = 0; j < subset[p].size(); j++) {
+						int re1 = subset[p][i] - 1; int re2 = subset[p][j] - 1;
+						exp += uijtr[re1][re2][t][r];
+					}
+				}
+				exp -= (subset[p].size() - 1);
+				constraint.add(exp <= 0);
+			}
+		}
+	}
+	for (int i = 0; i < n; i++) {
+		for (int j = 0; j < n; j++) {
+			for (int t = 0; t < T; t++) {
+				for (int r = 0; r < R[t]; r++) {
+					exp1 += uijtr[i][j][t][r];
+				}
+			}
+		}
+	}constraint.add(exp1 >= 2 * n);
+
+	for (int i = 1; i < n; i++) {
+		for (int t = 0; t < T; t++) {
+			IloExpr exp(env);
+			for (int k = 0; k < S[i].size(); k++) {
+				for (int p = 0; p < n; p++) {
+					exp += aikt[i][p][t];
+				}
+
+			}
+			constraint.add(exp >= n);
+		}
+	}
+	
+
+	//Constraint 12
 	for (int t = 0; t < T; t++) {
 		for (int r = 0; r < R[t]; r++) {
 			IloExpr exp(env);
@@ -222,6 +281,8 @@ int main(){
 			constraint.add(exp <= 1);
 		}
 	}
+
+	//Constraint13
 	for (int t = 0; t < T; t++) {
 		for (int r = 0; r < R[t]; r++) {
 			IloExpr exp(env);
@@ -235,6 +296,7 @@ int main(){
 		}
 	}
 	
+	//Constraint14
 	for (int t = 0; t < T; t++) {
 		for (int r = 0; r < R[t]; r++) {
 			IloExpr exp(env);
@@ -247,31 +309,7 @@ int main(){
 		}
 	}
 	
-	//11th constraint
-	vector<int> series;
-	for (int i = 1; i <= n; i++)series.push_back(i);
-	vector<vector<int>> subset;
-	subset = getAllSubsets(series);
-	
-	subset.erase(subset.begin());
-	
-	for (int t = 0; t < T; t++) {
-		for (int r = 0; r < R[t]; r++) {
-			for (int p = 0; p < subset.size(); p++) {
-				IloExpr exp(env);
-				for (int i = 0; i < subset[p].size(); i++) {
-					for (int j = 0; j < subset[p].size(); j++) {
-						int re1 = subset[p][i]-1; int re2 = subset[p][j]-1;
-						exp += uijtr[re1][re2][t][r];
-					}
-				}
-				exp -= (subset[p].size() - 1);
-				constraint.add(exp <= 0);
-			}
-		}
-	}
-	
-
+	//Objective function
 	IloExpr objective(env);
 	for (int t = 1; t < T; t++) {
 		for (int i = 0; i < n; i++) {
@@ -287,14 +325,11 @@ int main(){
 	Model.add(IloMinimize(env, objective));
 	objective.end();
 	Model.add(constraint);
-	cout << "a";
 	IloCplex mp(Model);
-	cout << "Roushan";
 	mp.setOut(env.getNullStream());
 	
 	mp.solve();
-	cout << "Optimal value is "<<mp.getObjValue();
-
+	fout << "Optimal value is "<<ceil(mp.getObjValue());
 
 	return 0;
 
