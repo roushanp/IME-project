@@ -164,7 +164,7 @@ int main(){
 					if(S[i][k][p])exp += xik[i][p]*aikt[i][p][t];
 				}
 			}
-			constraint1.add(exp >= n);
+			constraint1.add(exp -vit[i][t] == 0);
 		}
 	}
 	
